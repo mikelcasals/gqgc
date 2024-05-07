@@ -226,10 +226,13 @@ def format_to_graph(train_X, train_y, valid_X, valid_y, test_X, test_y, data_pat
         return math.sqrt(delta_rapidity**2 + delta_azimuthal**2)
     
     def get_graph_data(X,y, data_path, prefix):
-        full_data_path = data_path + "/" + prefix + "/"
+        full_data_path = data_path + "/" + prefix + "/" + prefix + "/raw/"  #format for graphAE
         # Ensure the directory exists
         if not os.path.exists(full_data_path):
             os.makedirs(full_data_path, exist_ok=True)
+        else:
+            return
+        
         DS_A = []
         DS_graph_indicator = []
         DS_graph_labels = []

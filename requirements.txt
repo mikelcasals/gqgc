@@ -6,3 +6,7 @@ matplotlib=3.8.4 #not used until now
 awkward=2.6.3
 vector=1.4.0
 scikit_learn=1.4.2
+particle=0.24.0
+pytorch=2.3.0
+torch_geometric=2.4.0
+extras_torch_geometric
