@@ -164,3 +164,4 @@ energyflow/
 subsampled_data/
 augmented_data/
 graph_data/
+saved_model/
