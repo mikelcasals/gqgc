@@ -48,13 +48,14 @@ class Net(torch.nn.Module, ABC):
         return edge_index, edge_weight
 
     def forward(self, data):
-        x, edge_index, y, batch = data.x, data.edge_index, data.y, data.batch
-        edge_index, _ = add_remaining_self_loops(edge_index, num_nodes=x.shape[0])
+        x, edge_index, y, batch, edge_weight = data.x, data.edge_index, data.y, data.batch, data.edge_attr
+        edge_index, edge_weight = add_remaining_self_loops(edge_index, edge_attr=edge_weight, num_nodes=x.shape[0])
+        edge_weight = edge_weight.squeeze()
 
         edge_list = []
         perm_list = []
         shape_list = []
-        edge_weight = x.new_ones(edge_index.size(1))
+        #edge_weight = x.new_ones(edge_index.size(1))
 
         f, e, b = x, edge_index, batch
         for i in range(self.depth):
@@ -63,7 +64,9 @@ class Net(torch.nn.Module, ABC):
             f, attn = self.down_list[i](f, e, self.direction)
             shape_list.append(f.shape)
             f = F.leaky_relu(f)
-            f, e, _, b, perm, _ = self.pool_list[i](f, e, edge_weight, b, attn)
+
+            f, e, edge_weight, b, perm, _ = self.pool_list[i](f, e, edge_weight, b, attn)
+
             if i < self.depth - 1:
                 e, edge_weight = self.augment_adj(e, edge_weight, f.shape[0])
             perm_list.append(perm)
