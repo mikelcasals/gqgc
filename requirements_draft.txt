@@ -11,5 +11,3 @@ pytorch=2.3.0
 torch_geometric=2.4.0
 extras_torch_geometric
 pennylane=0.36.0
-pennylane_gpu
-cuquantum

@@ -8,7 +8,7 @@ from graphAE.utils.train_utils import train_cp
 import torch
 import random
 import pennylane as qml
-from quantum_data import get_compressed_data, QuantumDataset, my_collate, pad_data
+from quantum_data import get_compressed_data, QuantumDataset, pad_data
 from vqc import VQC
 
 
@@ -69,8 +69,6 @@ def main(args):
 
     input_size = train_graphs.num_features
     shapes = list(map(int, args.shapes.split(",")))[0:args.depth]
-
-    print(train_graphs[0])
 
     train_set = DataLoader(train_graphs, batch_size=batch_size, shuffle=True)
     valid_set = DataLoader(valid_graphs, batch_size=batch_size, shuffle=False)
