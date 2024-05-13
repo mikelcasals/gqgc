@@ -7,6 +7,9 @@ from torch_geometric.loader import DataLoader
 from graphAE.utils.train_utils import train_cp
 import torch
 import random
+import pennylane as qml
+from quantum_data import get_compressed_data, QuantumDataset, my_collate, pad_data
+from vqc import VQC
 
 
 def main(args):
@@ -65,7 +68,9 @@ def main(args):
     test_graphs = SelectGraph(SelectGraph.data_name)
 
     input_size = train_graphs.num_features
-    shapes = list(map(int, args.shapes.split(",")))
+    shapes = list(map(int, args.shapes.split(",")))[0:args.depth]
+
+    print(train_graphs[0])
 
     train_set = DataLoader(train_graphs, batch_size=batch_size, shuffle=True)
     valid_set = DataLoader(valid_graphs, batch_size=batch_size, shuffle=False)
@@ -81,9 +86,65 @@ def main(args):
         print("model not found")
         return
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    train_cp(model, optimizer, device, train_set, valid_set, num_epoch, args.model_dir, args.m)
+    #train_cp(model, optimizer, device, train_set, valid_set, num_epoch, args.model_dir, args.m)
 
-    return
+    model.load_state_dict(torch.load(args.model_dir + args.m + ".ckpt"), strict=True)
+
+    #qgnn(model, train_set, valid_set, test_set,device)
+    
+    train_data, train_labels, max_num_nodes_train = get_compressed_data(train_set, device, model)
+    valid_data, valid_labels, max_num_nodes_valid = get_compressed_data(valid_set, device, model)
+    test_data, test_labels, max_num_nodes_test = get_compressed_data(test_set, device, model)
+
+    #padded_train_data = pad_data(train_data, max_num_nodes_train)
+    padded_train_data = train_data
+    padded_valid_data = pad_data(valid_data, max_num_nodes_train)
+    padded_test_data = pad_data(test_data, max_num_nodes_train)
+
+    train_quantum = QuantumDataset(padded_train_data, train_labels)
+    valid_quantum = QuantumDataset(padded_valid_data, valid_labels)
+    test_quantum = QuantumDataset(padded_test_data, test_labels)
+
+    n_qubits = 7
+    dev = qml.device("lightning.qubit", wires=n_qubits)
+    vqc = VQC(dev,None)
+
+    batch_size = 512 # Adjust batch size as needed
+    #train_quantum_loader = DataLoader(train_quantum, batch_size=batch_size, shuffle=False)
+    #valid_quantum_loader = DataLoader(valid_quantum, batch_size=batch_size, shuffle=False)
+
+
+    #for idx in range(0, len(train_quantum)):
+    #    data = train_quantum[0:512]
+    #    print(data)
+        #print(data[0].shape)
+        #print(data[1].shape)
+    #    break
+    #for data in train_quantum_loader:
+    #    print(data)
+
+    num_epoch = 100
+    vqc.train_model(train_quantum, valid_quantum, num_epoch, "output_quantum")
+
+
+    #i=0
+    #SelectGraph.data_name = full_graph_data_path + "/train"
+    #train_graphs = SelectGraph(SelectGraph.data_name)
+    #train_set = DataLoader(train_graphs, batch_size=1, shuffle=True)
+    #for data in train_set:
+    #    data = data.to(device)
+        #print(data)
+    #    z_train, x_train, edge_train, edge_weight_train, batch_train = model(data)
+    #    if len(z_train) == 148:
+
+            #print(data)
+            #print(z_train)
+            #print(x_train)
+            #print(edge_train)
+            #print(edge_weight_train)
+            #print(batch_train)
+        #i+=1
+    #return
 
 
 if __name__ == "__main__":

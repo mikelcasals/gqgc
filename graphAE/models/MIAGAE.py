@@ -52,6 +52,8 @@ class Net(torch.nn.Module, ABC):
         edge_index, edge_weight = add_remaining_self_loops(edge_index, edge_attr=edge_weight, num_nodes=x.shape[0])
         edge_weight = edge_weight.squeeze()
 
+        
+
         edge_list = []
         perm_list = []
         shape_list = []
@@ -87,6 +89,6 @@ class Net(torch.nn.Module, ABC):
         perm_list.clear()
         shape_list.clear()
 
-        return z, latent_x, latent_edge, b
+        return z, latent_x, latent_edge, edge_weight, b
 
 

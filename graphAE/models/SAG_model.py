@@ -45,13 +45,26 @@ class Net(torch.nn.Module, ABC):
 
     def forward(self, data):
         x, edge_index, y, batch, edge_weight = data.x, data.edge_index, data.y, data.batch, data.edge_attr
-        edge_index, edge_weight = add_remaining_self_loops(edge_index, edge_attr=edge_weight, num_nodes=x.shape[0])
+
+        #print(edge_weight)
+        #print(edge_index)
+        #print(edge_weight.shape)
+        #print(edge_index.shape)
+
+        #edge_index, edge_weight = add_remaining_self_loops(edge_index, edge_attr=edge_weight, num_nodes=x.shape[0])
         edge_weight = edge_weight.squeeze()
+
+        #print(edge_weight)
+        #print(edge_index)
+
+        #print(edge_weight.shape)
+        #print(edge_index.shape)
+        
 
         edge_list = []
         perm_list = []
         shape_list = []
-        edge_weight = x.new_ones(edge_index.size(1))
+        #edge_weight = x.new_ones(edge_index.size(1))
 
         f, e, b = x, edge_index, batch
         for i in range(self.depth):
@@ -60,11 +73,20 @@ class Net(torch.nn.Module, ABC):
             f = self.down_list[i](f, e)
             shape_list.append(f.shape)
             f = F.leaky_relu(f)
-            f, e, edge_weight, b, perm, _ = self.pool_list[i](f, e, batch=b)
-            if i < self.depth - 1:
-                e, edge_weight = self.augment_adj(e, edge_weight, f.shape[0])
+            f, e, edge_weight, b, perm, _ = self.pool_list[i](f, e, edge_weight, batch=b)
+            #f, e, _, b, perm, _ = self.pool_list[i](f, e, batch=b)
+            #print(edge_weight)
+            #print(e)
+
+            #print(edge_weight.shape)
+            #print(e.shape)
+            
+            #if i < self.depth - 1:
+                #e, edge_weight = self.augment_adj(e, edge_weight, f.shape[0])
+                #print(edge_weight)
             perm_list.append(perm)
         latent_x, latent_edge = f, e
+
 
         z = f
         for i in range(self.depth):
@@ -81,4 +103,5 @@ class Net(torch.nn.Module, ABC):
         perm_list.clear()
         shape_list.clear()
 
-        return z, latent_x, latent_edge, b
+        #print(edge_weight)
+        return z, latent_x, latent_edge, edge_weight, b

@@ -22,14 +22,17 @@ def load_model_result(model, train_set, test_set, device):
 
 
 def train_cp(model, optimizer, device, train_set, valid_set, num_epoch, path, m_name):
-
+    print("epoch, training_loss, validation_loss")
+    min_valid_loss = float('inf')
+    min_train_loss = float('inf')
+    best_epoch = 0
     for e in range(num_epoch):
         reconstruction_loss = 0
         reconstruction_loss_1 = 0
         for data in train_set:
             optimizer.zero_grad()
             data = data.to(device)
-            z, _, _, _ = model(data)
+            z, _, _, _, _ = model(data)
 
             loss = torch.nn.MSELoss()(z, data.x)
             loss.backward()
@@ -38,22 +41,33 @@ def train_cp(model, optimizer, device, train_set, valid_set, num_epoch, path, m_
 
         for data in valid_set:
             data = data.to(device)
-            z, _, _, _ = model(data)
+            z, _, _, _, _ = model(data)
             mse_loss = torch.nn.MSELoss()(z, data.x)
             reconstruction_loss_1 += mse_loss.item()
 
         reconstruction_loss /= len(train_set)
         reconstruction_loss_1 /= len(valid_set)
 
-        print()
-        print('Epoch: {:03d}'.format(e))
-        print('Training Loss:', reconstruction_loss)
-        print('Test Loss:', reconstruction_loss_1)
+        #print()
+        #print('Epoch: {:03d}'.format(e))
+        #print('Training Loss:', reconstruction_loss)
+        #print('Validation Loss:', reconstruction_loss_1)
 
-    if not os.path.exists(path):
-        os.makedirs(path)
-    torch.save(model.state_dict(), path + m_name + ".ckpt")
-    print("model saved")
+        print(str(e) + "," + str(reconstruction_loss) + "," + str(reconstruction_loss_1))
+
+        if reconstruction_loss_1 < min_valid_loss:
+            min_valid_loss = reconstruction_loss_1
+            min_train_loss = reconstruction_loss
+            best_epoch = e
+            if not os.path.exists(path):
+                os.makedirs(path)
+            torch.save(model.state_dict(), path + m_name + ".ckpt")
+            #print("model saved")
+        
+    #print("Min validation loss obtained at epoch", best_epoch)
+    #print("Training Loss:", min_train_loss)
+    #print("Validation Loss:", min_valid_loss)
+    print(str(best_epoch) + "," + str(min_train_loss) + "," + str(min_valid_loss))
 
 
 def train_cf(model, optimizer, device, train_set, valid_set, num_epoch, group1, group2):
