@@ -107,7 +107,7 @@ def main(args):
     dev = qml.device("lightning.qubit", wires=n_qubits)
     vqc = VQC(dev,None)
 
-    batch_size = 512 # Adjust batch size as needed
+    batch_size = 128 # Adjust batch size as needed
     #train_quantum_loader = DataLoader(train_quantum, batch_size=batch_size, shuffle=False)
     #valid_quantum_loader = DataLoader(valid_quantum, batch_size=batch_size, shuffle=False)
 
@@ -160,8 +160,8 @@ if __name__ == "__main__":
     parser.add_argument('--e', type=int, default=100, help="number of epochs")
     parser.add_argument('--batch', type=int, default=512, help="batch size")
     parser.add_argument('--device', type=str, default='cuda', help="cuda / cpu")
-    parser.add_argument('--shapes', type=str, default="32,16,3", help="shape of each layer in encoder")
-    parser.add_argument('--m', type=str, default='SAGpool', help="model name, MIAGAE or SAGpool")
+    parser.add_argument('--shapes', type=str, default="13,6,1", help="shape of each layer in encoder")
+    parser.add_argument('--m', type=str, default='MIAGAE', help="model name, MIAGAE or SAGpool")
     parser.add_argument('--k', type=int, default=2, help="number of kernels of MIAGAE")
     parser.add_argument('--depth', type=int, default=3, help="depth of encoder and decoder")
     parser.add_argument('--c_rate', type=float, default=0.35, help="compression ratio for each layer of encoder")

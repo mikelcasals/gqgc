@@ -15,9 +15,9 @@ class VQC:
             'n_qubits': 7,
             'n_features': 3,
             "optimizer": "adam",
-            "lr": 0.1,
-            "batch_size": 512,
-            "num_layers": 2,
+            "lr": 0.001,
+            "batch_size": 128,
+            "num_layers": 1,
         }
 
         #self._hp.update((k, hpars[k]) for k in self._hp.keys() & hpars.keys())
@@ -52,9 +52,10 @@ class VQC:
         """Circuit that uses the permutation equivariant embedding"""
         vf.perm_equivariant_embedding(A, node_features,betas, gammas)
         
-        observable = qml.PauliX(0)# @ qml.PauliZ(1) @ qml.PauliZ(2) @ qml.PauliZ(3) @ qml.PauliZ(4) @ qml.PauliZ(5) @ qml.PauliZ(6)
+        observable = qml.PauliZ(0)# @ qml.PauliZ(1) @ qml.PauliZ(2) @ qml.PauliZ(3) @ qml.PauliZ(4) @ qml.PauliZ(5) @ qml.PauliZ(6)
         for i in range(1, len(A)):
-            observable @= qml.PauliX(i)
+            #if i%2 == 0:
+            observable @= qml.PauliZ(i)
         return qml.expval(observable)
 
     @staticmethod
