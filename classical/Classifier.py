@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import json
+from sklearn.metrics import roc_auc_score
 
 from .terminal_colors import tcols
 
@@ -36,6 +37,11 @@ class GNN(torch.nn.Module):
         self.best_valid_loss = float("inf")
         self.all_train_loss = []
         self.all_valid_loss = []
+        self.all_train_acc = []
+        self.all_valid_acc = []
+        self.all_train_roc_auc = []
+        self.all_valid_roc_auc = []
+
         self.early_stopping_limit = self._hp["early_stopping"]
         self.epochs_no_improve = 0
 
@@ -116,11 +122,68 @@ class GNN(torch.nn.Module):
         """
         data = data.to(self._device)
         output = self.forward(data.x, data.edge_index, data.edge_attr, data.batch)
-        print
         #output = output.squeeze()
         loss = self._class_loss_function(output, data.y.long())
         return loss
     
+    def compute_accuracy(self,data):
+        """
+        Compute the accuracy of a forward pass through the ae.
+        @data  :: Numpy array of the original input data. Contains target values
+
+        returns :: Float of the computed accuracy value.
+        """
+        data = data.to(self._device)
+        output = self.forward(data.x, data.edge_index, data.edge_attr, data.batch)
+        preds = torch.argmax(output, dim=1)
+        correct = (preds==data.y).sum().item()
+        acc = correct/data.y.size(0)
+        return acc
+    
+    def compute_roc_auc(self, data):
+        """
+        Compute the roc auc score of a forward pass through the ae.
+        @data  :: Numpy array of the original input data. Contains target values
+
+        returns :: Float of the computed roc auc score.
+        """
+        data = data.to(self._device)
+        output = self.forward(data.x, data.edge_index, data.edge_attr, data.batch)
+        output = output.detach().cpu().numpy()
+        y_true = data.y.cpu().numpy()
+        roc_auc = roc_auc_score(y_true, output[:,1])
+        return roc_auc
+    
+
+    @staticmethod
+    def print_metrics(epoch, epochs, train_loss, valid_loss, train_acc, valid_acc, train_roc_auc, valid_roc_auc):
+        """
+        Prints the training and validation losses in a nice format.
+
+        Args:
+            epoch: Current epoch.
+            epochs: Total number of epochs.
+            train_loss: The computed training loss pytorch object.
+            valid_loss: The computed validation loss pytorch object.
+            train_acc: The computed training accuracy.
+            valid_acc: The computed validation accuracy.
+            train_roc_auc: The computed training roc_auc score.
+            valid_roc_auc: The computed validation roc_auc score.
+        """
+        print(
+            f"Epoch : {epoch + 1}/{epochs}, "
+            f"Train loss (average) = {train_loss.item():.8f}, "
+            f"Train accuracy = {train_acc:.4f}, "
+            f"Train ROC AUC = {train_roc_auc:.4f}"
+        )
+        print(
+            f"Epoch : {epoch + 1}/{epochs}, "
+            f"Valid loss = {valid_loss.item():.8f}, "
+            f"Valid accuracy = {valid_acc:.4f}, "
+            f"Valid ROC AUC = {valid_roc_auc:.4f}"
+        )
+    
+
     @staticmethod
     def print_losses(epoch, epochs: int, train_loss: torch.Tensor, valid_loss: torch.Tensor):
         """
@@ -206,18 +269,26 @@ class GNN(torch.nn.Module):
         returns :: Pytorch loss object of the validation loss.
         """
         batch_loss_sum = 0
+        batch_acc_sum = 0
+        batch_roc_auc_sum = 0
         nb_of_batches = 0
         for data in valid_loader:
             data = data.to(self._device)
             self.eval()
             batch_loss = self.compute_loss(data)
+            batch_acc = self.compute_accuracy(data)
+            batch_roc_auc = self.compute_roc_auc(data)
             batch_loss_sum += batch_loss
+            batch_acc_sum += batch_acc
+            batch_roc_auc_sum += batch_roc_auc
             nb_of_batches += 1
         
         loss = batch_loss_sum / nb_of_batches
+        acc = batch_acc_sum / nb_of_batches
+        roc_auc = batch_roc_auc_sum / nb_of_batches
         self.save_best_loss_model(loss, outdir)
 
-        return loss
+        return loss, acc, roc_auc
 
     def train_batch(self, data_batch) -> float:
         """
@@ -234,7 +305,10 @@ class GNN(torch.nn.Module):
         loss.backward()
         self.optimizer.step()
 
-        return loss
+        acc = self.compute_accuracy(data_batch)
+        roc_auc = self.compute_roc_auc(data_batch)
+
+        return loss, acc, roc_auc
 
     def train_all_batches(self, train_loader) -> float:
         """
@@ -245,13 +319,17 @@ class GNN(torch.nn.Module):
             batches in an epoch.
         """
         batch_loss_sum = 0
+        batch_acc_sum = 0
+        batch_roc_auc_sum = 0
         nb_of_batches = 0
         for batch_data in train_loader:
-            batch_loss = self.train_batch(batch_data)
+            batch_loss, batch_acc, batch_roc_auc = self.train_batch(batch_data)
             batch_loss_sum += batch_loss
+            batch_acc_sum += batch_acc
+            batch_roc_auc_sum += batch_roc_auc
             nb_of_batches += 1
 
-        return batch_loss_sum / nb_of_batches
+        return batch_loss_sum / nb_of_batches, batch_acc_sum / nb_of_batches, batch_roc_auc_sum / nb_of_batches
     
     def train_model(
         self,
@@ -277,14 +355,19 @@ class GNN(torch.nn.Module):
 
         for epoch in range(epochs):
             self.train()
-            train_loss = self.train_all_batches(train_loader)
-            valid_loss = self.valid(valid_loader, outdir)
+            train_loss, train_acc, train_roc_auc = self.train_all_batches(train_loader)
+            valid_loss, valid_acc, valid_roc_auc = self.valid(valid_loader, outdir)
             if self._early_stopping(self.early_stopping_limit):
                 break
 
             self.all_train_loss.append(train_loss.item())
             self.all_valid_loss.append(valid_loss.item())
-            self.print_losses(epoch, epochs, train_loss, valid_loss)
+            self.all_train_acc.append(train_acc)
+            self.all_valid_acc.append(valid_acc)
+            self.all_train_roc_auc.append(train_roc_auc)
+            self.all_valid_roc_auc.append(valid_roc_auc)
+            #self.print_losses(epoch, epochs, train_loss, valid_loss)
+            self.print_metrics(epoch, epochs, train_loss, valid_loss, train_acc, valid_acc, train_roc_auc, valid_roc_auc)
         
     def loss_plot(self, outdir: str):
         """
