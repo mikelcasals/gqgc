@@ -8,6 +8,7 @@ vector=1.4.0
 scikit_learn=1.4.2
 particle=0.24.0
 pytorch=2.3.0
+torchinfo=1.8.0
 torch_geometric=2.4.0
 extras_torch_geometric
 pennylane=0.36.0

@@ -15,17 +15,17 @@ class VQC:
             'n_qubits': 7,
             'n_features': 3,
             "optimizer": "adam",
-            "lr": 0.001,
+            "lr": 0.1, #subir learning rate
             "batch_size": 128,
-            "num_layers": 1,
+            "num_layers": 2,
         }
 
         #self._hp.update((k, hpars[k]) for k in self._hp.keys() & hpars.keys())
         self._qdevice = qdevice
         self._nlayers = self._hp["num_layers"]
         
-        self._gammas = 0.01 * np.random.randn(self._nlayers, requires_grad=True)
-        self._betas = 0.01 * np.random.randn(self._nlayers, requires_grad=True)
+        self._gammas = np.random.randn(self._nlayers, requires_grad=True) #increase range
+        self._betas = np.random.randn(self._nlayers, requires_grad=True)
         #self._weights = {"betas": self._betas, "gammas": self._gammas}
 
         self._diff_method = self._select_diff_method(self._hp)
@@ -52,10 +52,10 @@ class VQC:
         """Circuit that uses the permutation equivariant embedding"""
         vf.perm_equivariant_embedding(A, node_features,betas, gammas)
         
-        observable = qml.PauliZ(0)# @ qml.PauliZ(1) @ qml.PauliZ(2) @ qml.PauliZ(3) @ qml.PauliZ(4) @ qml.PauliZ(5) @ qml.PauliZ(6)
-        for i in range(1, len(A)):
+        observable = qml.PauliX(0)# @ qml.PauliZ(1) @ qml.PauliZ(2) @ qml.PauliZ(3) @ qml.PauliZ(4) @ qml.PauliZ(5) @ qml.PauliZ(6)
+        #for i in range(1, len(A)):  #medir primer qubit
             #if i%2 == 0:
-            observable @= qml.PauliZ(i)
+            #observable @= qml.PauliZ(i)
         return qml.expval(observable)
 
     @staticmethod
@@ -152,9 +152,9 @@ class VQC:
         """
         Calculate the loss on a validation data set.
         """
-        x_valid, y_valid = valid_loader
-        loss = self.compute_loss(x_valid, y_valid, self._weights)
-        self._save_best_loss_model(loss, outdir)
+        node_features_batch, A_batch, num_nodes_batch, y_batch = valid_loader
+        loss = self.compute_loss(node_features_batch, A_batch, num_nodes_batch, y_batch, self._betas, self._gammas)
+        #self._save_best_loss_model(loss, outdir)
 
         return loss
 

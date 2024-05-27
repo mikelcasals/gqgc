@@ -201,19 +201,26 @@ class SelectGraph(InMemoryDataset, ABC):
     data_name = ''
 
     def __init__(self, root, transform=None, pre_transform=None):
+        
         super(SelectGraph, self).__init__(root, transform, pre_transform)
         self.data, self.slices = torch.load(self.processed_paths[0])
+        self.data_name = root
 
     @property
     def processed_file_names(self):
         return ['data.pt']
 
     def process(self):
-        path = osp.join(osp.dirname(osp.realpath(__file__)), '../..', SelectGraph.data_name)
+        #path = osp.join(osp.dirname(osp.realpath(__file__)), '../..', SelectGraph.data_name)
+        path = osp.join(osp.dirname(osp.realpath(__file__)), '../..', self.data_name)
         
-        SelectGraph.data_name = SelectGraph.data_name.split('/')[-1]    #to obtain just train, valid, test
+        print(path)
+        
+        #SelectGraph.data_name = SelectGraph.data_name.split('/')[-1]    #to obtain just train, valid, test
+        self.data_name = self.data_name.split('/')[-1]    #to obtain just train, valid, test
 
-        data_set = TUDataset(path, name=SelectGraph.data_name, use_node_attr=True, use_edge_attr=True)
+        #data_set = TUDataset(path, name=SelectGraph.data_name, use_node_attr=True, use_edge_attr=True)
+        data_set = TUDataset(path, name=self.data_name, use_node_attr=True, use_edge_attr=True)
 
         data, slices = self.collate(data_set)
         torch.save((data, slices), self.processed_paths[0])

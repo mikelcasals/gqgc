@@ -167,3 +167,11 @@ graph_data/
 saved_model/
 outputs/
 outputs_1/
+
+
+trained_aes/
+trained_nns/
+data/
+compressed_data/
+aux_data/
+energyflow/

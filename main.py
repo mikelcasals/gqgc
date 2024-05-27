@@ -67,6 +67,7 @@ def main(args):
     SelectGraph.data_name = full_graph_data_path + "/test"
     test_graphs = SelectGraph(SelectGraph.data_name)
 
+
     input_size = train_graphs.num_features
     shapes = list(map(int, args.shapes.split(",")))[0:args.depth]
 
