@@ -23,7 +23,7 @@ def main(args):
     valid_graphs = data.SelectGraph(args['data_folder']+"/valid")
 
     train_loader = DataLoader(train_graphs, batch_size=args["batch"], shuffle=True)
-    valid_loader = DataLoader(valid_graphs, batch_size=args["batch"], shuffle=False)
+    valid_loader = DataLoader(valid_graphs, batch_size=len(valid_graphs), shuffle=False)
     
     #Autoencoder model definition
     model = util.choose_ae_model(args["aetype"], device, args)
