@@ -22,10 +22,10 @@ class SAG_model(nn.Module):
         self.hp = {
             "ae_type": "vanilla_SAG_model",
             "input_size": 13,
-            "kernels": 1,
+            "kernels": 2,
             "depth":3,
-            "rate":0.80,
-            "shapes": "13,13,13",
+            "c_rate":0.35,
+            "shapes": "13,5,1",
             "lr": 0.001,
             "early_stopping": 100,
         }
@@ -37,7 +37,7 @@ class SAG_model(nn.Module):
         size = self.hp["kernels"]
         self.depth = self.hp["depth"]
         self.shapes = list(map(int, self.hp["shapes"].split(",")))[0:self.depth]
-        self.rate = [self.hp["rate"]] * self.depth
+        self.rate = [self.hp["c_rate"]] * self.depth
 
         self.direction = 1
 
