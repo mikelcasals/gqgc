@@ -11,6 +11,7 @@ import torch.nn.functional as F
 
 from .SAG_model import SAG_model
 from .terminal_colors import tcols
+from sklearn.metrics import roc_auc_score
 
 class SAG_model_classifier(SAG_model):
 
@@ -31,6 +32,11 @@ class SAG_model_classifier(SAG_model):
         self.class_loss_weight = self.hp["class_weight"]
         self.all_recon_loss_valid = []
         self.all_class_loss_valid = []
+
+        self.all_train_acc = []
+        self.all_valid_acc = []
+        self.all_train_roc_auc = []
+        self.all_valid_roc_auc = []
 
         #Classifier
         self.conv1 = GraphConv(self.hp["input_size_class"], 2,aggr='mean')
@@ -111,6 +117,71 @@ class SAG_model_classifier(SAG_model):
 
         return self.recon_loss_weight * recon_loss + self.class_loss_weight*class_loss
     
+    def compute_accuracy(self,data):
+        """
+        Compute the accuracy of a forward pass through the ae.
+        @data  :: Numpy array of the original input data. Contains target values
+
+        returns :: Float of the computed accuracy value.
+        """
+        data = data.to(self.device)
+        _, _, _, _, _,class_output = self.forward(data)
+        preds = torch.argmax(class_output, dim=1)
+        correct = (preds==data.y).sum().item()
+        acc = correct/data.y.size(0)
+        return acc
+    
+    def compute_roc_auc(self, data):
+        """
+        Compute the roc auc score of a forward pass through the ae.
+        @data  :: Numpy array of the original input data. Contains target values
+
+        returns :: Float of the computed roc auc score.
+        """
+        data = data.to(self.device)
+        _, _, _, _, _, class_output = self.forward(data)
+        class_output = class_output.detach().cpu().numpy()
+        y_true = data.y.cpu().numpy()
+        roc_auc = roc_auc_score(y_true, class_output[:,1])
+        return roc_auc
+    
+    @staticmethod
+    def print_metrics(epoch, epochs, train_loss, valid_losses, train_acc, valid_acc, train_roc_auc, valid_roc_auc):
+        """
+        Prints the training and validation losses in a nice format.
+
+        Args:
+            epoch: Current epoch.
+            epochs: Total number of epochs.
+            train_loss: The computed training loss pytorch object.
+            valid_loss: The computed validation loss pytorch object.
+            train_acc: The computed training accuracy.
+            valid_acc: The computed validation accuracy.
+            train_roc_auc: The computed training roc_auc score.
+            valid_roc_auc: The computed validation roc_auc score.
+        """
+        print(
+            f"Epoch : {epoch + 1}/{epochs}, "
+            f"Train loss (average) = {train_loss.item():.8f}, "
+            f"Train accuracy = {train_acc:.4f}, "
+            f"Train ROC AUC = {train_roc_auc:.4f}"
+        )
+        print(
+            f"Epoch : {epoch + 1}/{epochs}, "
+            f"Valid loss = {valid_losses[0].item():.8f}, "
+            f"Valid accuracy = {valid_acc:.4f}, "
+            f"Valid ROC AUC = {valid_roc_auc:.4f}"
+        )
+
+        print(
+            f"Epoch : {epoch + 1}/{epochs}, "
+            f"Valid recon loss (no weight) = {valid_losses[1].item():.8f}"
+        )
+        print(
+            f"Epoch : {epoch + 1}/{epochs}, "
+            f"Valid class loss (no weight) = {valid_losses[2].item():.8f}"
+        )
+
     @staticmethod
     def print_losses(epoch, epochs, train_loss, valid_losses):
         """
@@ -160,10 +231,33 @@ class SAG_model_classifier(SAG_model):
             self.recon_loss_weight * recon_loss + self.class_loss_weight * class_loss
         )
 
+        valid_acc = self.compute_accuracy(data)
+        valid_roc_auc = self.compute_roc_auc(data)
+
         self.save_best_loss_model(valid_loss, outdir)
 
-        return valid_loss, recon_loss, class_loss
+        return (valid_loss, recon_loss, class_loss), valid_acc, valid_roc_auc
     
+    def train_batch(self, data_batch) -> float:
+        """
+        Train the model on a batch and evaluate the different kinds of losses.
+        Propagate this backwards for minimum train_loss.
+        @data_batch :: Pytorch batch object with the data, including target values
+
+        returns :: Pytorch loss object of the training loss.
+        """
+
+        loss = self.compute_loss(data_batch)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        acc = self.compute_accuracy(data_batch)
+        roc_auc = self.compute_roc_auc(data_batch)
+
+        return loss, acc, roc_auc
+
     def train_all_batches(self, train_loader):
         """
         Train the autoencoder and classifier for all batches.
@@ -172,13 +266,17 @@ class SAG_model_classifier(SAG_model):
         returns:: The normalised training loss over all the batches
         """
         batch_loss_sum = 0
+        batch_acc_sum = 0
+        batch_roc_auc_sum = 0
         nb_of_batches = 0
         for batch_data in train_loader:
-            batch_loss = self.train_batch(batch_data)
+            batch_loss, batch_acc, batch_roc_auc = self.train_batch(batch_data)
             batch_loss_sum += batch_loss
+            batch_acc_sum += batch_acc
+            batch_roc_auc_sum += batch_roc_auc
             nb_of_batches += 1
 
-        return batch_loss_sum / nb_of_batches
+        return batch_loss_sum / nb_of_batches, batch_acc_sum / nb_of_batches, batch_roc_auc_sum / nb_of_batches
     
     def train_autoencoder(self, train_loader, valid_loader, epochs, outdir):
         """
@@ -197,8 +295,8 @@ class SAG_model_classifier(SAG_model):
         for epoch in range(epochs):
             self.train()
 
-            train_loss = self.train_all_batches(train_loader)
-            valid_losses = self.valid(valid_loader, outdir)
+            train_loss, train_acc, train_roc_auc = self.train_all_batches(train_loader)
+            valid_losses, valid_acc, valid_roc_auc = self.valid(valid_loader, outdir)
 
             if self.early_stopping():
                 break
@@ -207,9 +305,14 @@ class SAG_model_classifier(SAG_model):
             self.all_valid_loss.append(valid_losses[0].item())
             self.all_recon_loss_valid.append(valid_losses[1].item())
             self.all_class_loss_valid.append(valid_losses[2].item())
+            self.all_train_acc.append(train_acc)
+            self.all_valid_acc.append(valid_acc)
+            self.all_train_roc_auc.append(train_roc_auc)
+            self.all_valid_roc_auc.append(valid_roc_auc)
 
-            self.print_losses(epoch, epochs, train_loss, valid_losses)
-    
+            #self.print_losses(epoch, epochs, train_loss, valid_losses)
+            self.print_metrics(epoch, epochs, train_loss, valid_losses, train_acc, valid_acc, train_roc_auc, valid_roc_auc)
+
     @torch.no_grad()
     def predict(self, data):
         """

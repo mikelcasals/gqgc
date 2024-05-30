@@ -65,7 +65,7 @@ class GNN(torch.nn.Module):
         self.conv1 = GraphConv(input_size, 2,aggr='mean')
         self.conv2 = GraphConv(2, 4,aggr='mean')
         self.conv3 = GraphConv(4, 8,aggr='mean')
-        self.fc = torch.nn.Linear(8, 2)
+        self.fc = torch.nn.Linear(8, num_classes)
 
 
     def forward(self, x, edge_index, edge_weight, batch):
