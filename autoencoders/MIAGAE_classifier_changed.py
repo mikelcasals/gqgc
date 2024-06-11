@@ -26,7 +26,8 @@ class MIAGAE_classifier(MIAGAE):
         self.hp.update(new_hp)
         self.hp.update((k, hpars[k]) for k in self.hp.keys() & hpars.keys())
 
-        self.class_loss_function = nn.CrossEntropyLoss()
+        #self.class_loss_function = nn.CrossEntropyLoss()
+        self.class_loss_function = nn.BCELoss()
 
         self.recon_loss_weight = 1 - self.hp["class_weight"]
         self.class_loss_weight = self.hp["class_weight"]
@@ -42,7 +43,7 @@ class MIAGAE_classifier(MIAGAE):
         self.conv1 = GraphConv(self.hp["input_size_class"], 2,aggr='mean')
         self.conv2 = GraphConv(2, 4,aggr='mean')
         self.conv3 = GraphConv(4, 8,aggr='mean')
-        self.fc = torch.nn.Linear(8, 2)
+        self.fc = torch.nn.Linear(8, 1)
 
 
     def forward(self, data):
@@ -113,7 +114,7 @@ class MIAGAE_classifier(MIAGAE):
         data = data.to(self.device)
         z, latent_x, latent_edge, edge_weight, b, class_output = self.forward(data)
 
-        class_loss = self.class_loss_function(class_output, data.y.long())
+        class_loss = self.class_loss_function(class_output.flatten(), data.y.float())
         recon_loss = self.recon_loss_function(z, data.x)
 
         return self.recon_loss_weight * recon_loss + self.class_loss_weight*class_loss
@@ -127,8 +128,11 @@ class MIAGAE_classifier(MIAGAE):
         """
         data = data.to(self.device)
         _, _, _, _, _,class_output = self.forward(data)
-        preds = torch.argmax(class_output, dim=1)
-        correct = (preds==data.y).sum().item()
+        #preds = torch.argmax(class_output, dim=1)
+        preds = torch.round(class_output).squeeze().int()
+        #correct = (preds==data.y).sum().item()
+        labels = data.y
+        correct = torch.eq(preds, data.y).sum().item()
         acc = correct/data.y.size(0)
         return acc
     
@@ -143,7 +147,7 @@ class MIAGAE_classifier(MIAGAE):
         _, _, _, _, _, class_output = self.forward(data)
         class_output = class_output.detach().cpu().numpy()
         y_true = data.y.cpu().numpy()
-        roc_auc = roc_auc_score(y_true, class_output[:,1])
+        roc_auc = roc_auc_score(y_true, class_output)
         return roc_auc
 
     @staticmethod
@@ -225,7 +229,7 @@ class MIAGAE_classifier(MIAGAE):
         self.eval()
         z, latent_x, latent_edge, edge_weight, b, class_output = self.forward(data)
 
-        class_loss = self.class_loss_function(class_output, data.y.long())
+        class_loss = self.class_loss_function(class_output.flatten(), data.y.float())
         recon_loss = self.recon_loss_function(z, data.x)
 
         valid_loss = (

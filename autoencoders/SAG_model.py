@@ -79,7 +79,7 @@ class SAG_model(nn.Module):
         """
 
         x, edge_index, y, batch, edge_weight = data.x, data.edge_index, data.y, data.batch, data.edge_attr
-        edge_index, edge_weight = add_remaining_self_loops(edge_index, edge_attr=edge_weight, num_nodes=x.shape[0],fill_value=0)
+        edge_index, edge_weight = add_remaining_self_loops(edge_index, edge_attr=edge_weight, num_nodes=x.shape[0])#,fill_value=0)
         edge_weight = edge_weight.squeeze()
 
         edge_list = []

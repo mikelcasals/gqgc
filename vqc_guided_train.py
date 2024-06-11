@@ -1,9 +1,8 @@
 import argparse
 
-from autoencoders.train import main
+from vqc_guided.train import main
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
 
 parser.add_argument("--data_folder", type=str, default="data/graphdata_10000_part_dist/", help="Folder containing the graph data to bed fed to the autoencoder")
 parser.add_argument("--norm", type=str, default="std", help="Normalization technique to be used")
@@ -12,9 +11,9 @@ parser.add_argument("--train_samples", type=int, default=8000, help="The exact n
 parser.add_argument("--valid_samples", type=int, default=1000, help="The exact number of validation events used < num_samples")
 
 parser.add_argument("--aetype", type=str, default="MIAGAE_classifier", help="Type of autoencoder to be used (MIAGAE_vanilla or SAG_model_vanilla)")
-parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
-parser.add_argument("--batch", type=int, default=512, help="Batch size")
-parser.add_argument("--epochs", type=int, default=100, help="Number of training epochs")
+parser.add_argument("--lr", type=float, default=0.1, help="Learning rate")
+parser.add_argument("--batch", type=int, default=256, help="Batch size")
+parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs")
 
 parser.add_argument("--class_weight", type=float, default=0.7, help="The weight of the classifier BCE loss")
 parser.add_argument("--outdir", type=str, default = "trained_MIAGAE_classifier_2", help="Output directory for the trained model")
@@ -27,6 +26,14 @@ parser.add_argument("--depth", type=int, default=3, help="Depth of encoder and d
 parser.add_argument("--c_rate", type=float, default=0.35, help="Compression ratio for each layer of the encoder")
 parser.add_argument("--shapes", type=str, default="13,5,1", help="Shape of each layer in the encoder")
 parser.add_argument("--input_size_class", type=int, default=1, help="Number of features per node for the classifier")
+
+parser.add_argument("--n_qubits", type=int, default=7, help="Number of qubits")
+parser.add_argument("--n_features", type=int, default=1, help="Number of features per node")
+parser.add_argument("--optimizer", type=str, default="adam", help="Optimizer to be used")
+parser.add_argument("--n_layers", type=int, default=1, help="Number of layers")
+parser.add_argument("--ideal_dev", type=str, default="lightning.qubit", help="Ideal device to be used")
+parser.add_argument("--ae_vqc_type", type=str, default="MIAGAE_vqc", help="Type of autoencoder-vqc to be used (MIAGAE_vqc)")
+parser.add_argument("--device", type=str, default="cpu", help="Device to be used")
 
 args = parser.parse_args()
 
@@ -48,7 +55,18 @@ args = {
     "kernels": args.kernels,
     "depth": args.depth,
     "c_rate": args.c_rate,
-    "shapes": args.shapes
+    "shapes": args.shapes,
+    "input_size_class": args.input_size_class,
+    "n_qubits": args.n_qubits,
+    "n_features": args.n_features,
+    "optimizer": args.optimizer,
+    "n_layers": args.n_layers,
+    "ideal_dev": args.ideal_dev,
+    "ae_vqc_type": args.ae_vqc_type,
+    "device": args.device
 }
 
+
 main(args)
+
+

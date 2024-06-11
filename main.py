@@ -9,7 +9,7 @@ import torch
 import random
 import pennylane as qml
 from quantum_data import get_compressed_data, QuantumDataset, pad_data
-from vqc import VQC
+from vqc_old import VQC
 
 
 def main(args):

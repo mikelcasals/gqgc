@@ -1,0 +1,1 @@
+{"n_qubits": 7, "n_features": 1, "optimizer": "adam", "lr": 0.1, "batch": 512, "n_layers": 2}

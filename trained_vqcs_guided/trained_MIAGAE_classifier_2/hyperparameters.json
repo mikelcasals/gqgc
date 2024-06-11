@@ -1,0 +1,1 @@
+{"ae_type": "MIAGAE_classifier", "input_size": 13, "kernels": 1, "depth": 3, "c_rate": 0.35, "shapes": "13,5,1", "lr": 0.1, "early_stopping": 100, "adam_betas": [0.9, 0.999], "class_weight": 0.7, "input_size_class": 1, "hybrid": true, "nqubits": 7, "n_features": 1, "vform": "perm_equivariant_embedding", "n_layers": 1}

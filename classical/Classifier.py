@@ -10,6 +10,7 @@ import os
 import numpy as np
 import json
 from sklearn.metrics import roc_auc_score
+from torch_geometric.utils import add_remaining_self_loops
 
 from .terminal_colors import tcols
 
