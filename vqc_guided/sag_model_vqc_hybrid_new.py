@@ -42,10 +42,12 @@ class SAG_model_VQC(SAG_model_classifier):
         self.hp.update((k, hpars[k]) for k in self.hp.keys() & hpars.keys())
         self.nlayers = self.hp["n_layers"]
 
-        self.gammas = nn.Parameter(torch.randn(self.nlayers), requires_grad=True)
+        self.n_features = self.hp["n_features"]
+
+        self.alphas = nn.Parameter(torch.randn(self.nlayers, self.n_features), requires_grad=True)
         self.betas = nn.Parameter(torch.randn(self.nlayers), requires_grad=True)
         
-        print(self.gammas)
+        print(self.alphas)
         print(self.betas)
 
         #self.gammas = Variable(0.1*torch.randn(self.nlayers), requires_grad=True)
@@ -59,8 +61,8 @@ class SAG_model_VQC(SAG_model_classifier):
         
         self.diff_method = self.select_diff_method(hpars)
         self.epochs_no_improve = 0
-        #self.circuit = qml.qnode(self.qdevice, diff_method = self.diff_method, interface="torch")(self.qcircuit)
-        self.circuit = qml.qnode(self.qdevice, diff_method = self.diff_method, interface="torch")(self.qcircuit_definitive)
+        self.circuit = qml.qnode(self.qdevice, diff_method = self.diff_method, interface="torch")(self.qcircuit)
+        #self.circuit = qml.qnode(self.qdevice, diff_method = self.diff_method, interface="torch")(self.qcircuit_definitive)
 
         #self.classifier = qml.qnn.TorchLayer(self.circuit, weight_shapes = {"betas": (self.nlayers,), "gammas": (self.nlayers,)})
         
@@ -93,66 +95,16 @@ class SAG_model_VQC(SAG_model_classifier):
             return hpars["diff_method"]
 
         return "best"
+
+
     
-    def qcircuit_old(self, inputs, betas, gammas):
-        #betas = weights["betas"]
-        #gammas = weights["gammas"]
-        #print(weights)
-
-        #print(inputs)
-        
-        node_features = inputs[0]
-        A = inputs[1]
-        #A = inputs[1]
-        #node_features = inputs[0]
-        #num_nodes = inputs[2]
-
-        """Circuit that uses the permutation equivariant embedding"""
-        vf.perm_equivariant_embedding(A, node_features,self.betas, self.gammas)
-        
-        observable = qml.PauliX(0)# @ qml.PauliZ(1) @ qml.PauliZ(2) @ qml.PauliZ(3) @ qml.PauliZ(4) @ qml.PauliZ(5) @ qml.PauliZ(6)
-        #for i in range(1, len(A)):  #medir primer qubit
-            #if i%2 == 0:
-            #observable @= qml.PauliX(i)
-        return qml.expval(observable)
-    
-    def qcircuit(self, inputs, betas, gammas):
-        qml.RX(inputs*betas[0], wires=0)
-        qml.RX(inputs*gammas[0], wires=0)
-
-        qml.IsingZZ(inputs*betas[1], wires=[0,1])
-
-        return qml.expval(qml.PauliX(0))
-
-
-    def qcircuit_goodone(self, inputs, betas, gammas):
-        num_nodes = int(inputs[0].item())
-        num_elements_adj_matrix = num_nodes*num_nodes
-        adj_matrix_flattened = inputs[-num_elements_adj_matrix:]
-        A = adj_matrix_flattened.view(num_nodes, num_nodes)
-        node_features = inputs[1:-num_elements_adj_matrix]
-
-        features_per_node = len(node_features) // num_nodes
-        node_features = node_features.view(num_nodes, features_per_node)
-        #node_features = inputs[0]
-        #A = inputs[1]
-
-        """Circuit that uses the permutation equivariant embedding"""
-        vf.perm_equivariant_embedding(A, node_features,self.betas, self.gammas)
-        
-        observable = qml.PauliX(0)# @ qml.PauliZ(1) @ qml.PauliZ(2) @ qml.PauliZ(3) @ qml.PauliZ(4) @ qml.PauliZ(5) @ qml.PauliZ(6)
-        #for i in range(1, len(A)):  #medir primer qubit
-            #if i%2 == 0:
-            #observable @= qml.PauliX(i)
-        return qml.expval(observable)
-    
-    def qcircuit_definitive(self, x, edge_index, edge_weight, betas, gammas):
+    def qcircuit(self, x, edge_index, edge_weight, alphas, betas):
         """
         Circuit that uses the permutation equivariant embedding
         """
-        vf.perm_equivariant_embedding_definitive(x,edge_index, edge_weight, betas, gammas)
-        
-        observable = qml.PauliX(0)
+        #vf.perm_equivariant_embedding_definitive(x,edge_index, edge_weight, alphas, betas)
+        vf.equivariant_ansatz(x, edge_index, edge_weight, alphas, betas)
+        observable = qml.PauliZ(0)
         #for i in range(1, len(x)):  #medir primer qubit
         #    if i%2 == 0:
         #        observable @= qml.PauliX(i)
@@ -216,7 +168,7 @@ class SAG_model_VQC(SAG_model_classifier):
 
         for i in range(len(data.y)):
             #class_output_list.append(self.classifier(quantum_data[i]))
-            class_output_list.append(self.circuit(latent_x[i], latent_edge[i], latent_edge_weight[i], self.betas, self.gammas))
+            class_output_list.append(self.circuit(latent_x[i], latent_edge[i], latent_edge_weight[i], self.alphas, self.betas))
             #class_output_list.append(self.classifier(latent_x[i]))
         class_output = torch.stack(class_output_list)
         
@@ -238,16 +190,16 @@ class SAG_model_VQC(SAG_model_classifier):
 
         return z, latent_x, latent_edge, edge_weight, b, class_output
     
-    def compute_loss(self, data, betas=None, gammas=None):
+    def compute_loss(self, data, alphas=None, betas=None):
         """
         Objective function to be passed through the optimiser.
         Weights is taken as an argument here since the optimiser func needs it.
         We then use the class self variable inside the method.
         """
+        if not alphas is None:
+            self.alphas = alphas
         if not betas is None:
             self.betas = betas
-        if not gammas is None:
-            self.gammas = gammas
         data = data.to(self.device)
         z, latent_x, latent_edge, edge_weight, b, class_output = self.forward(data)
         
@@ -292,7 +244,7 @@ class SAG_model_VQC(SAG_model_classifier):
         roc_auc = roc_auc_score(labels, shifted_preds)
         return roc_auc
     
-    def compute_loss_acc_rocauc(self, data, betas=None, gammas=None):
+    def compute_loss_acc_rocauc(self, data, alphas=None, betas=None):
         """
         Objective function to be passed through the optimiser.
         Weights is taken as an argument here since the optimiser func needs it.
@@ -306,8 +258,8 @@ class SAG_model_VQC(SAG_model_classifier):
         #    self.gammas = gammas
         if not betas is None:
             self.betas = betas
-        if not gammas is None:
-            self.gammas = gammas
+        if not alphas is None:
+            self.alphas = alphas
         #data = data.to(self.device)
         z, latent_x, latent_edge, edge_weight, b, class_output = self.forward(data)
         #loss = self.class_loss_function(predictions, data[2])
@@ -370,7 +322,7 @@ class SAG_model_VQC(SAG_model_classifier):
 
         data = data.to(self.device)
 
-        loss,recon_loss,class_loss, acc, rocauc = self.compute_loss_acc_rocauc(data, self.betas, self.gammas)
+        loss,recon_loss,class_loss, acc, rocauc = self.compute_loss_acc_rocauc(data, self.alphas, self.betas)
 
         self.optimizer.zero_grad()
         loss.backward()

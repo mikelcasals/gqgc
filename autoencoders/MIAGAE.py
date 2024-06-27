@@ -282,6 +282,8 @@ class MIAGAE(nn.Module):
         print(tcols.OKCYAN)
         print("Training the " + self.hp["ae_type"] + " AE model...")
         print(tcols.ENDC)
+        #total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        #print(f'Total number of trainable parameters: {total_params}')
 
         for epoch in range(epochs):
             self.train()

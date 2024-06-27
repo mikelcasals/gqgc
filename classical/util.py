@@ -12,6 +12,7 @@ def save_compressed_data(device, args):
 
     print(args["ae_model_path"])
     ae_model_folder = os.path.dirname(args['ae_model_path'])
+    print(ae_model_folder)
     hp_file = os.path.join(ae_model_folder, "hyperparameters.json")
     hp = ae_util.import_hyperparams(hp_file)
     ae_model = ae_util.choose_ae_model(args['aetype'], device, hp)

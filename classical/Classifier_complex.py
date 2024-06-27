@@ -1,4 +1,4 @@
-from torch_geometric.nn import global_mean_pool, GCNConv, SAGEConv
+from torch_geometric.nn import global_mean_pool, GraphConv, SAGEConv
 import torch.nn.functional as F
 import torch
 import torch.nn as nn
@@ -51,18 +51,28 @@ class GNN(torch.nn.Module):
         input_size = self._hp["input_size"]
         hidden = self._hp["hidden"]
         num_classes = self._hp["num_classes"]
+        self.conv1 = GraphConv(input_size, input_size,aggr='mean')
+        self.conv2 = GraphConv(input_size, input_size,aggr='mean')
+        self.conv3 = GraphConv(input_size, input_size,aggr='mean')
 
+        self.lin1 = nn.Linear(input_size, input_size)
+        self.bn1 = nn.BatchNorm1d(input_size)
+        self.lin2 = nn.Linear(input_size, input_size)
+        self.bn2 = nn.BatchNorm1d(hidden // 2)
+        self.lin3 = nn.Linear(hidden // 2, hidden // 4)
+        self.bn3 = nn.BatchNorm1d(hidden // 4)
+        self.lin4 = nn.Linear(hidden // 4, 1)
+
+        self.conv1 = GraphConv(input_size, 2,aggr='mean')
 
         self.hidden_size = 1
 
-        #self.conv1 = GCNConv(input_size, self.hidden_size)
-        self.conv1 = GCNConv(input_size, input_size)
+        self.conv1 = GraphConv(input_size, self.hidden_size, aggr='mean')
         #self.conv2 = GraphConv(2, 4,aggr='mean')
         #self.conv3 = GraphConv(4, 8,aggr='mean')
         #self.fc = torch.nn.Linear(8, num_classes)
         #self.fc = torch.nn.Linear(input_size, num_classes)
-        #self.fc = torch.nn.Linear(self.hidden_size, 1)
-        self.fc = torch.nn.Linear(input_size, 1)
+        self.fc = torch.nn.Linear(self.hidden_size, 1)
 
     def forward(self, x, edge_index, edge_weight, batch):
         #x1 = self.conv1(x, edge_index, edge_weight)
@@ -98,8 +108,9 @@ class GNN(torch.nn.Module):
         x = self.fc(x)
         #x = F.dropout(x, p=0.1, training=self.training)
         x = torch.sigmoid(x)
+        c=x
 
-        return x
+        return c
 
     def instantiate_adam_optimizer(self):
         """Instantiate the optimizer object, used in the training of the model."""
@@ -349,8 +360,6 @@ class GNN(torch.nn.Module):
         print(tcols.OKCYAN)
         print("Training the GNN...")
         print(tcols.ENDC)
-        #total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        #print(f'Total number of trainable parameters: {total_params}')
 
         for epoch in range(epochs):
             self.train()

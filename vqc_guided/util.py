@@ -121,6 +121,7 @@ def transform_data_for_classifier_definitive(x, edge_index, batch, edge_attr):
 def choose_ae_vqc_model(ae_vqc_type, qdevice, device, hyperparams) -> callable:
     from .miagae_vqc_hybrid import MIAGAE_VQC
     from .sag_model_vqc_hybrid import SAG_model_VQC
+    from .sag_model_vqc_hybrid_new import SAG_model_VQC as SAG_model_VQC_new
     """
     Picks and loads one of the implemented autoencoder model classes.
     @ae_type     :: String of the type of autoencoder that you want to load.
@@ -131,7 +132,8 @@ def choose_ae_vqc_model(ae_vqc_type, qdevice, device, hyperparams) -> callable:
     """
     switcher = {
         "MIAGAE_vqc": lambda: MIAGAE_VQC(qdevice=qdevice, device=device, hpars=hyperparams).to(device),
-        "SAG_model_vqc": lambda: SAG_model_VQC(qdevice=qdevice, device=device, hpars=hyperparams).to(device)
+        "SAG_model_vqc": lambda: SAG_model_VQC(qdevice=qdevice, device=device, hpars=hyperparams).to(device),
+        "SAG_model_vqc_new": lambda: SAG_model_VQC_new(qdevice=qdevice, device=device, hpars=hyperparams).to(device)
     }
     model = switcher.get(ae_vqc_type, lambda: None)()
     if model is None:

@@ -30,6 +30,8 @@ class MIAGAE_classifier(MIAGAE):
 
         self.recon_loss_weight = 1 - self.hp["class_weight"]
         self.class_loss_weight = self.hp["class_weight"]
+        self.all_recon_loss_train = []
+        self.all_class_loss_train = []
         self.all_recon_loss_valid = []
         self.all_class_loss_valid = []
 
@@ -39,10 +41,11 @@ class MIAGAE_classifier(MIAGAE):
         self.all_valid_roc_auc = []
 
         #Classifier
-        self.conv1 = GraphConv(self.hp["input_size_class"], 2,aggr='mean')
-        self.conv2 = GraphConv(2, 4,aggr='mean')
-        self.conv3 = GraphConv(4, 8,aggr='mean')
-        self.fc = torch.nn.Linear(8, 2)
+        #self.conv1 = GraphConv(self.hp["input_size_class"], 2,aggr='mean')
+        self.conv1 = GraphConv(self.hp["input_size_class"], 1 ,aggr='mean')
+        #self.conv2 = GraphConv(2, 4,aggr='mean')
+        #self.conv3 = GraphConv(4, 8,aggr='mean')
+        self.fc = torch.nn.Linear(1, 2)
 
 
     def forward(self, data):
@@ -75,10 +78,10 @@ class MIAGAE_classifier(MIAGAE):
         #Classifier
         c = self.conv1(latent_x, latent_edge,edge_weight)
         c = F.relu(c)
-        c = self.conv2(c, latent_edge,edge_weight)
-        c = F.relu(c)
-        c = self.conv3(c, latent_edge,edge_weight)
-        c = F.relu(c)
+        #c = self.conv2(c, latent_edge,edge_weight)
+        #c = F.relu(c)
+        #c = self.conv3(c, latent_edge,edge_weight)
+        #c = F.relu(c)
         c = global_mean_pool(c, latent_batch)
         c = self.fc(c)
         #x = F.dropout(x, p=0.1, training=self.training)
@@ -116,7 +119,7 @@ class MIAGAE_classifier(MIAGAE):
         class_loss = self.class_loss_function(class_output, data.y.long())
         recon_loss = self.recon_loss_function(z, data.x)
 
-        return self.recon_loss_weight * recon_loss + self.class_loss_weight*class_loss
+        return (self.recon_loss_weight * recon_loss + self.class_loss_weight*class_loss, recon_loss, class_loss)
     
     def compute_accuracy(self,data):
         """
@@ -145,9 +148,9 @@ class MIAGAE_classifier(MIAGAE):
         y_true = data.y.cpu().numpy()
         roc_auc = roc_auc_score(y_true, class_output[:,1])
         return roc_auc
-
+    
     @staticmethod
-    def print_metrics(epoch, epochs, train_loss, valid_losses, train_acc, valid_acc, train_roc_auc, valid_roc_auc):
+    def print_metrics(epoch, epochs, train_losses, valid_losses, train_acc, valid_acc, train_roc_auc, valid_roc_auc):
         """
         Prints the training and validation losses in a nice format.
 
@@ -163,10 +166,20 @@ class MIAGAE_classifier(MIAGAE):
         """
         print(
             f"Epoch : {epoch + 1}/{epochs}, "
-            f"Train loss (average) = {train_loss.item():.8f}, "
-            f"Train accuracy = {train_acc:.4f}, "
-            f"Train ROC AUC = {train_roc_auc:.4f}"
+            f"Train loss (avg) = {train_losses[0].item():.8f}, "
+            f"Train accuracy (avg) = {train_acc:.4f}, "
+            f"Train ROC AUC (avg) = {train_roc_auc:.4f}"
         )
+        print(
+            f"Epoch : {epoch + 1}/{epochs}, "
+            f"Train recon loss (no weight) (avg) = {train_losses[1].item():.8f}"
+        )
+        print(
+            f"Epoch : {epoch + 1}/{epochs}, "
+            f"Train class loss (no weight) (avg) = {train_losses[2].item():.8f}"
+        )
+
+
         print(
             f"Epoch : {epoch + 1}/{epochs}, "
             f"Valid loss = {valid_losses[0].item():.8f}, "
@@ -182,6 +195,8 @@ class MIAGAE_classifier(MIAGAE):
             f"Epoch : {epoch + 1}/{epochs}, "
             f"Valid class loss (no weight) = {valid_losses[2].item():.8f}"
         )
+
+        print("")
 
     @staticmethod
     def print_losses(epoch, epochs, train_loss, valid_losses):
@@ -237,7 +252,6 @@ class MIAGAE_classifier(MIAGAE):
 
         self.save_best_loss_model(valid_loss, outdir)
 
-
         return (valid_loss, recon_loss, class_loss), valid_acc, valid_roc_auc
     
     def train_batch(self, data_batch) -> float:
@@ -249,7 +263,7 @@ class MIAGAE_classifier(MIAGAE):
         returns :: Pytorch loss object of the training loss.
         """
 
-        loss = self.compute_loss(data_batch)
+        loss, recon_loss, class_loss = self.compute_loss(data_batch)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -258,7 +272,7 @@ class MIAGAE_classifier(MIAGAE):
         acc = self.compute_accuracy(data_batch)
         roc_auc = self.compute_roc_auc(data_batch)
 
-        return loss, acc, roc_auc
+        return loss, recon_loss, class_loss, acc, roc_auc
 
     def train_all_batches(self, train_loader):
         """
@@ -268,17 +282,21 @@ class MIAGAE_classifier(MIAGAE):
         returns:: The normalised training loss over all the batches
         """
         batch_loss_sum = 0
+        batch_recon_loss_sum = 0
+        batch_class_loss_sum = 0
         batch_acc_sum = 0
         batch_roc_auc_sum = 0
         nb_of_batches = 0
         for batch_data in train_loader:
-            batch_loss, batch_acc, batch_roc_auc = self.train_batch(batch_data)
+            batch_loss, batch_recon_loss, batch_class_loss, batch_acc, batch_roc_auc = self.train_batch(batch_data)
             batch_loss_sum += batch_loss
             batch_acc_sum += batch_acc
             batch_roc_auc_sum += batch_roc_auc
+            batch_recon_loss_sum += batch_recon_loss
+            batch_class_loss_sum += batch_class_loss
             nb_of_batches += 1
 
-        return batch_loss_sum / nb_of_batches, batch_acc_sum / nb_of_batches, batch_roc_auc_sum / nb_of_batches
+        return (batch_loss_sum / nb_of_batches, batch_recon_loss_sum / nb_of_batches, batch_class_loss_sum / nb_of_batches) ,batch_acc_sum / nb_of_batches, batch_roc_auc_sum / nb_of_batches
     
     def train_autoencoder(self, train_loader, valid_loader, epochs, outdir):
         """
@@ -297,13 +315,15 @@ class MIAGAE_classifier(MIAGAE):
         for epoch in range(epochs):
             self.train()
 
-            train_loss, train_acc, train_roc_auc = self.train_all_batches(train_loader)
+            train_losses, train_acc, train_roc_auc = self.train_all_batches(train_loader)
             valid_losses, valid_acc, valid_roc_auc = self.valid(valid_loader, outdir)
 
             if self.early_stopping():
                 break
 
-            self.all_train_loss.append(train_loss.item())
+            self.all_train_loss.append(train_losses[0].item())
+            self.all_recon_loss_train.append(train_losses[1].item())
+            self.all_class_loss_train.append(train_losses[2].item())
             self.all_valid_loss.append(valid_losses[0].item())
             self.all_recon_loss_valid.append(valid_losses[1].item())
             self.all_class_loss_valid.append(valid_losses[2].item())
@@ -313,8 +333,8 @@ class MIAGAE_classifier(MIAGAE):
             self.all_valid_roc_auc.append(valid_roc_auc)
 
             #self.print_losses(epoch, epochs, train_loss, valid_losses)
-            self.print_metrics(epoch, epochs, train_loss, valid_losses, train_acc, valid_acc, train_roc_auc, valid_roc_auc)
-    
+            self.print_metrics(epoch, epochs, train_losses, valid_losses, train_acc, valid_acc, train_roc_auc, valid_roc_auc)
+
     @torch.no_grad()
     def predict(self, data):
         """

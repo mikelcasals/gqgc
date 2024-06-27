@@ -1,30 +1,18 @@
-MIAGAE_VQC(
+SAG_model_VQC(
   (down_list): ModuleList(
-    (0): SGAT(
-      (gat_list): ModuleList(
-        (0): SAGEAttn(13, 13)
-      )
-    )
-    (1): SGAT(
-      (gat_list): ModuleList(
-        (0): SAGEAttn(13, 5)
-      )
-    )
-    (2): SGAT(
-      (gat_list): ModuleList(
-        (0): SAGEAttn(5, 1)
-      )
-    )
+    (0): SAGEConv(13, 13, aggr=mean)
+    (1): SAGEConv(13, 5, aggr=mean)
+    (2): SAGEConv(5, 1, aggr=mean)
   )
   (up_list): ModuleList(
-    (0): SAGEConv(1, 5)
-    (1): SAGEConv(5, 13)
-    (2): SAGEConv(13, 13)
+    (0): SAGEConv(1, 5, aggr=mean)
+    (1): SAGEConv(5, 13, aggr=mean)
+    (2): SAGEConv(13, 13, aggr=mean)
   )
   (pool_list): ModuleList(
-    (0): TopKPooling(13, ratio=0.35, multiplier=1.0)
-    (1): TopKPooling(5, ratio=0.35, multiplier=1.0)
-    (2): TopKPooling(1, ratio=0.35, multiplier=1.0)
+    (0): SAGPooling(GraphConv, 13, ratio=0.4, multiplier=1.0)
+    (1): SAGPooling(GraphConv, 5, ratio=0.4, multiplier=1.0)
+    (2): SAGPooling(GraphConv, 1, ratio=0.4, multiplier=1.0)
   )
   (recon_loss_function): MSELoss()
   (conv1): GraphConv(1, 2)

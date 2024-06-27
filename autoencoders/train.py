@@ -22,7 +22,17 @@ def main(args):
     train_graphs = data.SelectGraph(args['data_folder']+"/train")
     valid_graphs = data.SelectGraph(args['data_folder']+"/valid")
 
-    train_loader = DataLoader(train_graphs, batch_size=args["batch"], shuffle=True)
+    if args["train_dataloader_type"] == "fixed_sampling":
+        sampler = data.BalancedFixedSubsetSampler(train_graphs, args["num_samples_train"])
+        train_loader = DataLoader(train_graphs, batch_size=args["batch"], sampler=sampler)
+    elif args["train_dataloader_type"] == "random_sampling":
+        sampler = data.BalancedRandomSubsetSampler(train_graphs, args["num_samples_train"])
+        train_loader = DataLoader(train_graphs, batch_size=args["batch"], sampler=sampler)
+    elif args["train_dataloader_type"] == "fixed_full":
+        train_loader = DataLoader(train_graphs, batch_size=args["batch"], shuffle=True)
+    else:
+        raise TypeError("Specified train dataloader type not recognized")
+
     valid_loader = DataLoader(valid_graphs, batch_size=len(valid_graphs), shuffle=False)
     
     #Autoencoder model definition

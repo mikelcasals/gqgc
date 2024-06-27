@@ -5,7 +5,7 @@
 
 import torch
 import torch.nn as nn
-from torch_geometric.nn import global_mean_pool, GraphConv, SAGEConv
+from torch_geometric.nn import global_mean_pool, GCNConv, SAGEConv
 from torch_geometric.utils import add_remaining_self_loops
 import torch.nn.functional as F
 
@@ -26,7 +26,8 @@ class SAG_model_classifier(SAG_model):
         self.hp.update(new_hp)
         self.hp.update((k, hpars[k]) for k in self.hp.keys() & hpars.keys())
 
-        self.class_loss_function = nn.CrossEntropyLoss()
+        #self.class_loss_function = nn.CrossEntropyLoss()
+        self.class_loss_function = nn.BCELoss()
 
         self.recon_loss_weight = 1 - self.hp["class_weight"]
         self.class_loss_weight = self.hp["class_weight"]
@@ -40,15 +41,12 @@ class SAG_model_classifier(SAG_model):
         self.all_train_roc_auc = []
         self.all_valid_roc_auc = []
 
-        self.hidden_size = 2
+        self.hidden_size = 1
 
         #Classifier
-        #self.conv1 = GraphConv(self.hp["input_size_class"], 2,aggr='mean')
-        self.conv1 = GraphConv(self.hp["input_size_class"], self.hidden_size,aggr='mean')
-        #self.conv2 = GraphConv(2, 4,aggr='mean')
-        #self.conv3 = GraphConv(4, 8,aggr='mean')
-        #self.fc = torch.nn.Linear(8, 2)
-        self.fc = torch.nn.Linear(self.hidden_size, 2)
+        #self.conv1 = GCNConv(self.hp["input_size_class"], self.hidden_size,aggr='mean')
+        #self.fc = torch.nn.Linear(self.hidden_size, 1)
+        self.fc = torch.nn.Linear(self.hp["input_size_class"], 1)
 
 
     def forward(self, data):
@@ -78,13 +76,9 @@ class SAG_model_classifier(SAG_model):
         latent_x, latent_edge, latent_batch = f, e, b
 
         #Classifier
-        c = self.conv1(latent_x, latent_edge,edge_weight)
-        c = F.relu(c)
-        #c = self.conv2(c, latent_edge,edge_weight)
+        #c = self.conv1(latent_x, latent_edge,edge_weight)
         #c = F.relu(c)
-        #c = self.conv3(c, latent_edge,edge_weight)
-        #c = F.relu(c)
-        c = global_mean_pool(c, latent_batch)
+        c = global_mean_pool(latent_x, latent_batch)
         c = self.fc(c)
         #x = F.dropout(x, p=0.1, training=self.training)
         class_output = torch.sigmoid(c)
@@ -118,7 +112,7 @@ class SAG_model_classifier(SAG_model):
         data = data.to(self.device)
         z, latent_x, latent_edge, edge_weight, b, class_output = self.forward(data)
 
-        class_loss = self.class_loss_function(class_output, data.y.long())
+        class_loss = self.class_loss_function(class_output.flatten(), data.y.float())
         recon_loss = self.recon_loss_function(z, data.x)
 
         return (self.recon_loss_weight * recon_loss + self.class_loss_weight*class_loss, recon_loss, class_loss)
@@ -132,8 +126,10 @@ class SAG_model_classifier(SAG_model):
         """
         data = data.to(self.device)
         _, _, _, _, _,class_output = self.forward(data)
-        preds = torch.argmax(class_output, dim=1)
-        correct = (preds==data.y).sum().item()
+        preds = torch.round(class_output).squeeze().int()
+        #preds = torch.argmax(class_output, dim=1)
+        #correct = (preds==data.y).sum().item()
+        correct = torch.eq(preds, data.y).sum().item()
         acc = correct/data.y.size(0)
         return acc
     
@@ -148,7 +144,7 @@ class SAG_model_classifier(SAG_model):
         _, _, _, _, _, class_output = self.forward(data)
         class_output = class_output.detach().cpu().numpy()
         y_true = data.y.cpu().numpy()
-        roc_auc = roc_auc_score(y_true, class_output[:,1])
+        roc_auc = roc_auc_score(y_true, class_output)
         return roc_auc
     
     @staticmethod
@@ -242,7 +238,7 @@ class SAG_model_classifier(SAG_model):
         self.eval()
         z, latent_x, latent_edge, edge_weight, b, class_output = self.forward(data)
 
-        class_loss = self.class_loss_function(class_output, data.y.long())
+        class_loss = self.class_loss_function(class_output.flatten(), data.y.float())
         recon_loss = self.recon_loss_function(z, data.x)
 
         valid_loss = (

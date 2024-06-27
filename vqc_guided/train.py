@@ -26,7 +26,21 @@ def main(args):
     train_graphs = ae_data.SelectGraph(args['data_folder']+"/train")
     valid_graphs = ae_data.SelectGraph(args['data_folder']+"/valid")
 
-    train_loader = DataLoader(train_graphs, batch_size=args["batch"], shuffle=True)
+    #class1_indices = [i for i, data in enumerate(train_graphs) if data.y == 1]
+    #print(train_graphs[class1_indices])
+
+    if args["train_dataloader_type"] == "fixed_sampling":
+        sampler = ae_data.BalancedFixedSubsetSampler(train_graphs, args["num_samples_train"])
+        train_loader = DataLoader(train_graphs, batch_size=args["batch"], sampler=sampler)
+    elif args["train_dataloader_type"] == "random_sampling":
+        sampler = ae_data.BalancedRandomSubsetSampler(train_graphs, args["num_samples_train"])
+        train_loader = DataLoader(train_graphs, batch_size=args["batch"], sampler=sampler)
+    elif args["train_dataloader_type"] == "fixed_full":
+        train_loader = DataLoader(train_graphs, batch_size=args["batch"], shuffle=True)
+    else:
+        raise TypeError("Specified train dataloader type not recognized")
+
+
     valid_loader = DataLoader(valid_graphs, batch_size=len(valid_graphs), shuffle=False)
 
 

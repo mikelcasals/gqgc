@@ -364,7 +364,7 @@ class MIAGAE_VQC(MIAGAE_classifier):
         #print(self.gammas)
         data = data.to(self.device)
 
-        loss,_,_, acc, rocauc = self.compute_loss_acc_rocauc(data, self.betas, self.gammas)
+        loss,recon_loss, class_loss, acc, rocauc = self.compute_loss_acc_rocauc(data, self.betas, self.gammas)
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -374,8 +374,8 @@ class MIAGAE_VQC(MIAGAE_classifier):
         #    if param.requires_grad:
         #        print(f"Gradients for {name}: {param.grad}")
 
-        print(self.betas.grad)
-        print(self.gammas.grad)
+        #print(self.betas.grad)
+        #print(self.gammas.grad)
 
         #print("Parameters being optimized:")
         #for param_group in self.optimizer.param_groups:
@@ -389,7 +389,7 @@ class MIAGAE_VQC(MIAGAE_classifier):
 
         #print(self.gammas)
         
-        return loss, acc, rocauc
+        return loss, recon_loss, class_loss, acc, rocauc
     
 
     #def train_batch(self, data_batch) -> float:

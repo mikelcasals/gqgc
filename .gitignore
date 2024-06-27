@@ -175,3 +175,12 @@ data/
 compressed_data/
 aux_data/
 energyflow/
+.vscode/
+outputs_new_vqc/
+outputs_validate_all/
+outputs_validate_all_2/
+outputs_vqc_guided
+outputs_vqc_guided_learning_rate/
+trained_vqcs/
+trained_vqcs_guided/
+

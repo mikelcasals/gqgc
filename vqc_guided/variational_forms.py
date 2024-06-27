@@ -54,3 +54,20 @@ def perm_equivariant_embedding_definitive(x, edge_index, edge_weight, betas, gam
         for i in range(n_nodes):
             #temp = np.array(node_features_mean[i]/10, requires_grad=False)
             qml.RX(betas[l]*node_features_mean[i], wires=i)
+
+
+def equivariant_ansatz(x, edge_index, edge_weight, alphas, betas):
+
+    n_nodes = x.shape[0]
+    n_features = x.shape[1]
+    n_layers = alphas.shape[0]
+
+    for layer in range(n_layers):
+        for i in range(n_nodes):
+            for j in range(n_features):
+                qml.RX(x[i,j], wires=i)
+                qml.RX(alphas[layer,j], wires=i)
+
+        for i in range(edge_index.shape[1]):
+            if edge_index[0,i] < edge_index[1,i]:
+                qml.IsingZZ(edge_weight[i] + betas[layer], wires=[edge_index[0,i].item(),edge_index[1,i].item()])

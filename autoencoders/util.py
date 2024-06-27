@@ -11,6 +11,9 @@ from .MIAGAE import MIAGAE
 from .SAG_model import SAG_model
 from .MIAGAE_classifier import MIAGAE_classifier
 from .SAG_model_classifier import SAG_model_classifier
+from .SAG_model_classifier_basic import SAG_model_classifier as SAG_model_classifier_basic
+from .MIAGAE_classifier_basic import MIAGAE_classifier as MIAGAE_classifier_basic
+from .SAG_model_classifier_super_basic import SAG_model_classifier as SAG_model_classifier_super_basic
 
 from .terminal_colors import tcols
 
@@ -72,7 +75,10 @@ def choose_ae_model(ae_type, device, hyperparams) -> callable:
         "MIAGAE_vanilla": lambda: MIAGAE(device=device, hpars=hyperparams).to(device),
         "SAG_model_vanilla": lambda: SAG_model(device=device, hpars=hyperparams).to(device),
         "MIAGAE_classifier": lambda: MIAGAE_classifier(device=device, hpars=hyperparams).to(device),
-        "SAG_model_classifier": lambda: SAG_model_classifier(device=device, hpars=hyperparams).to(device)
+        "SAG_model_classifier": lambda: SAG_model_classifier(device=device, hpars=hyperparams).to(device),
+        "SAG_model_classifier_basic": lambda: SAG_model_classifier_basic(device=device, hpars=hyperparams).to(device),
+        "MIAGAE_classifier_basic": lambda: MIAGAE_classifier_basic(device=device, hpars=hyperparams).to(device),
+        "SAG_model_classifier_super_basic": lambda: SAG_model_classifier_super_basic(device=device, hpars=hyperparams).to(device)
     }
     model = switcher.get(ae_type, lambda: None)()
     if model is None:
