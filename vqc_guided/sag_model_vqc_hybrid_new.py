@@ -297,8 +297,6 @@ class SAG_model_VQC(SAG_model_classifier):
     
 
     def train_batch(self, data):
-
-        
         """
         Train on one batch.
         """

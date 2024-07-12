@@ -419,10 +419,7 @@ class MIAGAE(nn.Module):
 
             latent_x_list = [','.join(map(str, row)) for row in latent_x.numpy()]
             node_attributes.extend(latent_x_list)
-            #edge_attributes.extend(latent_edge_weight)
             latent_edge_index += global_node_index
-            #edges = latent_edge_index.T
-            #A.extend([tuple(pair) for pair in edges])
             latent_edge_index_all = torch.cat((latent_edge_index_all,latent_edge_index), dim=1)
             latent_edge_weight_all = torch.cat((latent_edge_weight_all,latent_edge_weight))
 
@@ -437,23 +434,6 @@ class MIAGAE(nn.Module):
         A = [tuple(pair) for pair in A.T]
         edge_attributes = list(edge_attributes)
 
-        # Step 1: Sort the list by the first element of each tuple
-        #sorted_pairs = sorted(A, key=lambda x: (x[0], x[1]))
-
-        # Step 2: Create a new list where each tuple is followed by its inverse
-        #ordered_pairs = []
-        #used_pairs = set()
-
-        #for pair in sorted_pairs:
-        #    if pair not in used_pairs:
-        #        ordered_pairs.append(pair)
-        #        ordered_pairs.append((pair[1], pair[0]))
-        #        used_pairs.add(pair)
-        #        used_pairs.add((pair[1], pair[0]))
-        
-        #A = ordered_pairs
-
-        #DS_node_attributes.append(','.join(map(str, features)))
         # Save files
         with open(full_data_path + prefix + '_A.txt', 'w') as f:
             for entry in A:
@@ -470,9 +450,3 @@ class MIAGAE(nn.Module):
         with open(full_data_path + prefix + '_edge_attributes.txt', 'w') as f:
             for attribute in edge_attributes:
                 f.write(f'{attribute}\n')
-
-
-            #latent_space.append(latent_x)
-        
-        #latent_space = torch.cat(latent_space, dim=0)
-        #torch.save(latent_space, outdir + "latent_space.pt")

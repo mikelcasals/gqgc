@@ -183,4 +183,7 @@ outputs_vqc_guided
 outputs_vqc_guided_learning_rate/
 trained_vqcs/
 trained_vqcs_guided/
+trained_gaes/
+trained_classifiers/
+trained_guided_classifiers/
 

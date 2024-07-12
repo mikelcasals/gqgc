@@ -17,7 +17,7 @@ parser.add_argument("--epochs", type=int, default=100, help="Number of training 
 
 parser.add_argument("--class_weight", type=float, default=0.7, help="The weight of the classifier BCE loss")
 parser.add_argument("--outdir", type=str, default = "SAG_model_new", help="Output directory for the trained model")
-parser.add_argument("--seed", type=int, default=42, help="Random seed")
+parser.add_argument("--seed", type=int, default=1, help="Random seed")
 parser.add_argument("--early_stopping", type=int, default=100, help="Number of epochs to wait before early stopping")
 
 parser.add_argument("--input_size", type=int, default=13, help="Number of features per node")

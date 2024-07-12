@@ -69,5 +69,5 @@ def equivariant_ansatz(x, edge_index, edge_weight, alphas, betas):
                 qml.RX(alphas[layer,j], wires=i)
 
         for i in range(edge_index.shape[1]):
-            if edge_index[0,i] < edge_index[1,i]:
+            if edge_index[0,i] < edge_index[1,i] and edge_weight[i] != 0:
                 qml.IsingZZ(edge_weight[i] + betas[layer], wires=[edge_index[0,i].item(),edge_index[1,i].item()])
